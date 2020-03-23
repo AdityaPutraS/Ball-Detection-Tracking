@@ -17,7 +17,17 @@ private:
 
     int countErode;
 
-    int epsBoundRC;
+    int lowThreshold;
+    int ratio;
+    int kernel_size;
+
+    int min_dist;
+    int upper_threshold;
+    int center_threshold;
+    int min_r;
+    int max_r;
+
+    int epsBoundRC, epsBoundEC;
     int minRContour, maxRContour;
 
     static void on_trackbar(int value, void *userdata);

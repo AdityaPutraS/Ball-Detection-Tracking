@@ -17,8 +17,17 @@ BallDetection::BallDetection() : ballRadius(0), ballPos(-1, -1)
     max_V = 255;
     countErode = 1;
     epsBoundRC = 70;
-    minRContour = 12;
+    epsBoundEC = 45;
+    minRContour = 12;//25;
     maxRContour = 200;
+    min_dist = 4;
+    upper_threshold = 61;
+    center_threshold = 45;
+    min_r = 90;
+    max_r = 209;
+    lowThreshold = 150;
+    ratio = 1;
+    kernel_size = 3;
     createTrackbar("Min H", "Parameter", &min_H, 255, on_trackbar);
     createTrackbar("Max H", "Parameter", &max_H, 255, on_trackbar);
     createTrackbar("Min S", "Parameter", &min_S, 255, on_trackbar);
@@ -27,8 +36,17 @@ BallDetection::BallDetection() : ballRadius(0), ballPos(-1, -1)
     createTrackbar("Max V", "Parameter", &max_V, 255, on_trackbar);
     createTrackbar("Count Erosi", "Parameter", &countErode, 10, on_trackbar);
     createTrackbar("epsBoundRC", "Parameter", &epsBoundRC, 100, on_trackbar);
+    createTrackbar("epsBoundEC", "Parameter", &epsBoundEC, 100, on_trackbar);
     createTrackbar("minRContour", "Parameter", &minRContour, 200, on_trackbar);
     createTrackbar("maxRContour", "Parameter", &maxRContour, 200, on_trackbar);
+    createTrackbar("lowThreshold Canny", "Parameter", &lowThreshold, 500, on_trackbar);
+    createTrackbar("lowThreshold*ratio Canny", "Parameter", &ratio, 50, on_trackbar);
+    createTrackbar("kernel_size", "Parameter", &kernel_size, 50, on_trackbar);
+    createTrackbar("min_dist", "Parameter", &min_dist, 20, on_trackbar);
+    createTrackbar("upTh", "Parameter", &upper_threshold, 1000, on_trackbar);
+    createTrackbar("c_th", "Parameter", &center_threshold, 1000, on_trackbar);
+    createTrackbar("min_r", "Parameter", &min_r, 400, on_trackbar);
+    createTrackbar("max_r", "Parameter", &max_r, 400, on_trackbar);
 }
 
 void BallDetection::on_trackbar(int value, void *userdata) {}
@@ -90,6 +108,7 @@ bool BallDetection::Process(Mat image)
         float radius;
         minEnclosingCircle(contours[i], center, radius);
         RotatedRect minRect = minAreaRect(contours[i]);
+        RotatedRect minEllips = RotatedRect(minRect);
         //--------------------------------Cek apakah rasio rect/circle > epsBoundRC--------------------------------
         //Jika iya maka bola
         float luasCirlce = radius * radius * CV_PI;
@@ -97,7 +116,24 @@ bool BallDetection::Process(Mat image)
         bool passed = false;
         if (100 * luasRect / luasCirlce > epsBoundRC)
         {
-            passed = true;
+            if (contours[i].size() >= 5)
+            {
+                minEllips = fitEllipse(contours[i]);
+#ifdef DEBUGBALL
+                ellipse(contoursImg, minEllips, Scalar(0, 255, 0), 3);
+#endif
+            }
+            //--------------------------------Cek apakah rasio ellipse/circle > epsBoundEC--------------------------------
+            Point2f elips_points[4];
+            minEllips.points(elips_points);
+            float minor = norm(elips_points[0] - elips_points[1]) / 2;
+            float major = norm(elips_points[1] - elips_points[2]) / 2;
+            float luasEllips = minor * major * CV_PI;
+            if (100 * luasEllips / luasCirlce > epsBoundEC)
+            {
+                // ROS_ERROR_STREAM("Con " << i << "Pass EC" << endl);
+                passed = true;
+            }
 #ifdef DEBUGBALL
             // Debugging : gambar minAreaRect
             Point2f rect_points[4];
@@ -119,6 +155,21 @@ bool BallDetection::Process(Mat image)
         }
     }
     imshow("Contour", contoursImg);
+    //--------------------------------Hough Circle--------------------------------
+    //PreProcessing lagi
+    Mat preProcHough;
+    Canny(image, preProcHough, lowThreshold, lowThreshold * ratio, 7);
+    GaussianBlur(preProcHough, preProcHough, Size(9, 9), 2, 2, 4);
+    vector<Vec3f> circles;
+    HoughCircles(preProcHough, circles, HOUGH_GRADIENT, 1, preProcHough.rows / min_dist,
+                    upper_threshold, center_threshold, min_r, max_r);
+    for (Vec3f c : circles)
+    {
+#ifdef DEBUGBALL
+        circle(contoursImg, Point(c[0], c[1]), c[2] / 2, Scalar(255, 0, 0), 8);
+#endif
+        kandidatBola.push_back(Point3f(c[0], c[1], c[2]));
+    }
     //--------------------------------Sort bola berdasar radius--------------------------------
     sort(kandidatBola.begin(), kandidatBola.end(), compareBola);
     if (kandidatBola.size() >= 1)
