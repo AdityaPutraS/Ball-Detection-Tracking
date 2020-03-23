@@ -1,5 +1,5 @@
-#ifndef BallFinder_H
-#define BallFinder_H
+#ifndef BALL_DETECTION
+#define BALL_DETECTION
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -24,7 +24,7 @@ private:
     void CreateTrackbar();
     void CreateTrackbarField();
     Mat morphOps(Mat thresh);
-    Mat preProcessing(Mat frame);
+    
 
 public:
     int ballRadius;
@@ -33,6 +33,7 @@ public:
     BallDetection();
     static bool isDetectBall(Point2d center);
     bool Process(Mat image);
+    Mat preProcessing(Mat frame);
 };
 
 #endif

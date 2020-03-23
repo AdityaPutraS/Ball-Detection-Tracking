@@ -5,7 +5,6 @@ using namespace std;
 
 BallDetection::BallDetection() : ballRadius(0), ballPos(-1, -1)
 {
-    namedWindow("Pre-Processing", WINDOW_NORMAL);
     namedWindow("Contour", WINDOW_NORMAL);
     namedWindow("Parameter");
 
@@ -17,8 +16,8 @@ BallDetection::BallDetection() : ballRadius(0), ballPos(-1, -1)
     min_V = 146;
     max_V = 255;
     countErode = 1;
-    epsBoundRC = 43;
-    minRContour = 9;
+    epsBoundRC = 70;
+    minRContour = 12;
     maxRContour = 200;
     createTrackbar("Min H", "Parameter", &min_H, 255, on_trackbar);
     createTrackbar("Max H", "Parameter", &max_H, 255, on_trackbar);
@@ -76,27 +75,13 @@ bool compareBola(Point3f p1, Point3f p2)
 
 bool BallDetection::Process(Mat image)
 {
-    //--------------------------------Validity Checking-----------------------------
-    bool imageValid = image.rows > 0 && image.cols > 0;
-    if (!imageValid)
-    {
-        if (!imageValid)
-        {
-            cout << "Image tidak valid";
-        }
-        return false;
-    }
-    //--------------------------------Pre Processing--------------------------------
-    Mat debug_thresold, fieldCopy;
-    Mat preProc = preProcessing(image);
-    imshow("Pre-Processing", preProc);
     //--------------------------------Ball Detection--------------------------------
     vector<Point3f> kandidatBola; //Vector titik 3 dimensi (x, y, r), r = radius
 
     //Menggunakkan Contour Detection & cek bentuk untuk mencari bola
     //--------------------------------Contour Finding--------------------------------
     vector<vector<Point>> contours;
-    findContours(preProc, contours, RETR_TREE, CHAIN_APPROX_SIMPLE);
+    findContours(image, contours, RETR_TREE, CHAIN_APPROX_SIMPLE);
     Mat contoursImg;
     image.copyTo(contoursImg);
     for (size_t i = 0; i < contours.size(); i++)
